@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:r="urn:report"
+ xmlns:iso="urn:currency" xmlns:m="urn:measure">
+ <xbrli:context id="c_i"><xbrli:entity><xbrli:identifier scheme="urn:lei">ACME</xbrli:identifier></xbrli:entity><xbrli:period><xbrli:instant>2025-12-31</xbrli:instant></xbrli:period></xbrli:context>
+ <xbrli:context id="c_y"><xbrli:entity><xbrli:identifier scheme="urn:lei">ACME</xbrli:identifier></xbrli:entity><xbrli:period><xbrli:startDate>2025-01-01</xbrli:startDate><xbrli:endDate>2025-12-31</xbrli:endDate></xbrli:period></xbrli:context>
+ <xbrli:context id="c_q"><xbrli:entity><xbrli:identifier scheme="urn:lei">OTHER</xbrli:identifier></xbrli:entity><xbrli:period><xbrli:startDate>2025-10-01</xbrli:startDate><xbrli:endDate>2025-12-31</xbrli:endDate></xbrli:period></xbrli:context>
+ <xbrli:unit id="usd"><xbrli:measure>iso:USD</xbrli:measure></xbrli:unit>
+ <xbrli:unit id="shares"><xbrli:measure>m:shares</xbrli:measure></xbrli:unit>
+ <xbrli:unit id="price"><xbrli:divide><xbrli:unitNumerator><xbrli:measure>iso:USD</xbrli:measure></xbrli:unitNumerator><xbrli:unitDenominator><xbrli:measure>m:shares</xbrli:measure></xbrli:unitDenominator></xbrli:divide></xbrli:unit>
+ <xbrli:unit id="inverse"><xbrli:divide><xbrli:unitNumerator><xbrli:measure>m:shares</xbrli:measure></xbrli:unitNumerator><xbrli:unitDenominator><xbrli:measure>iso:USD</xbrli:measure></xbrli:unitDenominator></xbrli:divide></xbrli:unit>
+ <xbrli:unit id="repeated"><xbrli:measure>iso:USD</xbrli:measure><xbrli:measure>m:shares</xbrli:measure><xbrli:measure>iso:USD</xbrli:measure></xbrli:unit>
+ <r:Title contextRef="c_i"> Annual &amp; audited 
+</r:Title>
+ <r:Revenue contextRef="c_y" unitRef="usd" decimals="2">12.30</r:Revenue>
+ <r:Missing contextRef="c_i" xsi:nil="true"> </r:Missing>
+ <r:Empty contextRef="c_i"></r:Empty>
+ <r:Zero contextRef="c_y" unitRef="usd" xsi:nil="false" decimals="INF">0</r:Zero>
+ <r:MissingNumber contextRef="c_y" unitRef="usd" xsi:nil="1"/>
+ <r:Price contextRef="c_q" unitRef="price" decimals="3">2.500</r:Price>
+</xbrli:xbrl>
