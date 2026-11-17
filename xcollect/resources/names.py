@@ -24,6 +24,10 @@ def _ncname(value):
                0x300 <= ord(c) <= 0x36F or 0x203F <= ord(c) <= 0x2040 for c in value[1:])
 
 
+def is_ncname(value):
+    return _ncname(value)
+
+
 def expanded_name(namespace, local):
     if not isinstance(namespace, str) or not namespace or "}" in namespace or not _ncname(local):
         raise BusinessValidationError("invalid expanded QName")

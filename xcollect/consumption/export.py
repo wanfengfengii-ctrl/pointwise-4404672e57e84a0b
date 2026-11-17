@@ -1,3 +1,5 @@
+import base64
+from hashlib import sha256
 from xcollect.consumption.reconcile import reconcile_result
 from xcollect.facts.numeric import decimal_to_string
 from xcollect.resources.periods import period_key
@@ -19,6 +21,16 @@ def fact_to_record(fact, catalog, evidence):
     }
 
 
+def type_basis_record(basis):
+    from xcollect.typed.records import basis_record
+    return {"root_uri": basis.root_uri,
+            "schemas": [{"uri": file.uri,
+                         "sha256": sha256(file.body).hexdigest(),
+                         "body_base64": base64.b64encode(file.body).decode("ascii")}
+                        for file in basis.files],
+            "concepts": [basis_record(item) for item in basis.concepts]}
+
+
 class EvidenceExporter:
     def __init__(self, repository):
         self.repository = repository
@@ -26,6 +38,10 @@ class EvidenceExporter:
     def export_evidence(self, result_id):
         snapshot = self.repository.load_published(result_id)
         checked = reconcile_result(snapshot)
-        return {"document_id": snapshot["result"]["document_id"], "result_id": result_id,
-                "digest": snapshot["result"]["digest"], "fact_count": checked.fact_count,
-                "facts": [fact_to_record(f, checked.catalog, checked.evidence[f.ordinal]) for f in checked.facts]}
+        record = {"document_id": snapshot["result"]["document_id"], "result_id": result_id,
+                  "digest": snapshot["result"]["digest"], "fact_count": checked.fact_count,
+                  "facts": [fact_to_record(f, checked.catalog, checked.evidence[f.ordinal])
+                            for f in checked.facts]}
+        if checked.mode == "typed":
+            record["type_basis"] = type_basis_record(checked.basis)
+        return record

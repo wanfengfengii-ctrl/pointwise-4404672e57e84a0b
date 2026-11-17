@@ -1,8 +1,9 @@
 import sqlite3
 from xcollect.errors import IntegrityError
 
-SCHEMA_VERSION = 1
-TABLES = (
+SCHEMA_VERSION = 2
+
+V1_TABLES = (
     """CREATE TABLE sources(
         document_id TEXT PRIMARY KEY, digest TEXT NOT NULL, body BLOB NOT NULL)""",
     """CREATE TABLE results(
@@ -34,23 +35,52 @@ TABLES = (
         digest TEXT NOT NULL, fact_count INTEGER NOT NULL CHECK(fact_count>=0))""",
 )
 
+TYPED_TABLES = (
+    """CREATE TABLE source_modes(
+        document_id TEXT PRIMARY KEY REFERENCES sources(document_id),
+        mode TEXT NOT NULL CHECK(mode IN ('v1','typed')))""",
+    """CREATE TABLE typed_results(
+        result_id TEXT PRIMARY KEY REFERENCES results(result_id), root_uri TEXT NOT NULL)""",
+    """CREATE TABLE typed_schemas(
+        result_id TEXT NOT NULL REFERENCES results(result_id), uri TEXT NOT NULL,
+        sha256 TEXT NOT NULL, body BLOB NOT NULL, PRIMARY KEY(result_id,uri))""",
+    """CREATE TABLE typed_concepts(
+        result_id TEXT NOT NULL REFERENCES results(result_id), concept TEXT NOT NULL,
+        type_name TEXT NOT NULL, primitive TEXT NOT NULL,
+        white_space TEXT NOT NULL, min_inclusive TEXT, max_inclusive TEXT, enumeration TEXT,
+        PRIMARY KEY(result_id,concept))""",
+)
+
+TABLES = V1_TABLES + TYPED_TABLES
+
 
 def _definitions(connection):
     return {r[0]: " ".join(r[1].split()) for r in connection.execute(
         "SELECT name,sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")}
 
 
-def validate_schema(connection):
+def _expected_definitions(statements):
     with sqlite3.connect(":memory:") as expected:
-        for statement in TABLES:
+        for statement in statements:
             expected.execute(statement)
-        definitions = _definitions(expected)
+        return _definitions(expected)
+
+
+def validate_schema(connection):
     if connection.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION:
         raise IntegrityError("incompatible archive schema version")
-    if _definitions(connection) != definitions:
+    if _definitions(connection) != _expected_definitions(TABLES):
         raise IntegrityError("incompatible archive table definitions")
     if connection.execute("PRAGMA foreign_keys").fetchone()[0] != 1:
         raise IntegrityError("foreign key enforcement is required")
+
+
+def _migrate_v1(connection):
+    if _definitions(connection) != _expected_definitions(V1_TABLES):
+        raise IntegrityError("incompatible archive table definitions")
+    for statement in TYPED_TABLES:
+        connection.execute(statement)
+    connection.execute("PRAGMA user_version=2")
 
 
 def initialize_schema(connection):
@@ -63,7 +93,9 @@ def initialize_schema(connection):
         if existing is None and version == 0:
             for statement in TABLES:
                 connection.execute(statement)
-            connection.execute("PRAGMA user_version=1")
+            connection.execute("PRAGMA user_version=2")
+        elif version == 1:
+            _migrate_v1(connection)
         validate_schema(connection)
         connection.commit()
     except BaseException:

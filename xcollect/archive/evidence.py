@@ -1,7 +1,7 @@
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 from xcollect.errors import IntegrityError
-from xcollect.documents.identity import source_digest, make_result_id
+from xcollect.documents.identity import source_digest, make_result_id, make_typed_result_id
 from xcollect.facts.candidates import SingleElementSource
 from xcollect.resources.names import validate_expanded_name
 
@@ -26,13 +26,20 @@ def load_single_evidence(row):
                                  SingleElementSource(tuple(path), row["concept"], row["raw_text"]))
 
 
+def _identity(result, snapshot):
+    if snapshot.get("mode") == "typed":
+        fingerprint = [(row["uri"], row["sha256"]) for row in snapshot.get("typed_schemas") or []]
+        return make_typed_result_id(result["document_id"], result["digest"], fingerprint)
+    return make_result_id(result["document_id"], result["digest"])
+
+
 def validate_evidence_bundle(snapshot):
     result, source = snapshot["result"], snapshot["source"]
     if source is None or source.document_id != result["document_id"]:
         raise IntegrityError("missing source document")
     if source_digest(source.body) != source.digest or result["digest"] != source.digest:
         raise IntegrityError("source digest mismatch")
-    if make_result_id(source.document_id, source.digest) != result["result_id"]:
+    if _identity(result, snapshot) != result["result_id"]:
         raise IntegrityError("fixed result identity mismatch")
     evidence, paths = {}, set()
     for row in snapshot["single_sources"]:
@@ -40,7 +47,7 @@ def validate_evidence_bundle(snapshot):
         if item.result_id != result["result_id"] or item.ordinal in evidence:
             raise IntegrityError("evidence belongs to another result")
         if item.source.path in paths:
-            raise IntegrityError("ordinary sources cannot share an element")
+            raise IntegrityError("sources cannot share an element")
         paths.add(item.source.path)
         evidence[item.ordinal] = item
     if set(evidence) != {row["ordinal"] for row in snapshot["facts"]}:
